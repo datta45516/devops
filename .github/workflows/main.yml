@@ -17,8 +17,8 @@ jobs:
       - name: Checkout Repo B (champ_private via GH_DEPLOY_KEY)  #cloning ur private repo inside public repo
         uses: actions/checkout@v3
         with:
-          repository: datta45516/champ_private
-          ssh-key: ${{ secrets.SSH_PRIVATE_KEY_REPO1_ACCESS }}    
+          repository: datta45516/devops
+          ssh-key: ${{ secrets.PRIVATE_KEY }}    
           ref: main                                    # capturing source code from main branch of private repo
           path: web                                    #copy souce code inside "web"
           persist-credentials: false                   # by default PAT flase  
