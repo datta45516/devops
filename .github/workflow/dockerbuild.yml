@@ -38,7 +38,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
-            XAMPP_VERSION=8.1.24-0
+            XAMPP_VERSION=8.0.30-0
       - name: Run container (smoke test)
         run: |
           # run container in background mapped to host port 8080
@@ -60,11 +60,11 @@ jobs:
           docker ps -a
           docker stop xampp-test || true
           docker rm xampp-test || true
-Update dockerbuild.yml · triovative-bot/ghbatchtest@b3799d3
+Update dockerbuild.yml · datta45516/devops
 # Dockerfile - Build XAMPP on Ubuntu
 FROM ubuntu:22.04
 
-ARG XAMPP_VERSION="8.1.24-0"
+ARG XAMPP_VERSION="8.0.30-0"
 ENV DEBIAN_FRONTEND=noninteractive
 
 # minimal packages needed for installer + curl for healthcheck
