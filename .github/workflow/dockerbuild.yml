@@ -1,0 +1,92 @@
+
+name: Build, Test & Push XAMPP Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+env:
+  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/xampp
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU (optional multi-arch support)
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ env.IMAGE_NAME }}:latest,${{ env.IMAGE_NAME }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            XAMPP_VERSION=8.1.24-0
+      - name: Run container (smoke test)
+        run: |
+          # run container in background mapped to host port 8080
+          docker run -d --name xampp-test -p 8080:80 ${{ env.IMAGE_NAME }}:latest
+          echo "Waiting for container to start..."
+          for i in {1..12}; do
+            if curl -sf http://localhost:8080 >/dev/null; then
+              echo "Service is up"
+              break
+            fi
+            sleep 5
+          done
+          # fetch a short response to verify
+          curl -I http://localhost:8080 | head -n 5
+        # Always clean up the container
+      - name: Clean up container
+        if: always()
+        run: |
+          docker ps -a
+          docker stop xampp-test || true
+          docker rm xampp-test || true
+Update dockerbuild.yml · triovative-bot/ghbatchtest@b3799d3
+# Dockerfile - Build XAMPP on Ubuntu
+FROM ubuntu:22.04
+
+ARG XAMPP_VERSION="8.1.24-0"
+ENV DEBIAN_FRONTEND=noninteractive
+
+# minimal packages needed for installer + curl for healthcheck
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget ca-certificates perl curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Allow passing a custom installer URL at build time (fallback to common pattern)
+ARG XAMPP_URL="https://excellmedia.dl.sourceforge.net/project/xampp/XAMPP%20Linux/8.0.30/xampp-linux-x64-8.0.30-0-installer.run"
+
+# Download and install XAMPP unattended
+RUN wget -qO /tmp/xampp-installer.run "$XAMPP_URL" \
+ && chmod +x /tmp/xampp-installer.run \
+ && /tmp/xampp-installer.run --mode unattended \
+ && rm -f /tmp/xampp-installer.run
+
+EXPOSE 80 443 3306
+
+# Simple healthcheck: succeed when root page returns 2xx
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -fsS http://localhost/ || exit 1
+
+# Start XAMPP and tail logs so container stays alive
+CMD ["/bin/bash", "-lc", "/opt/lampp/lampp start && tail -F /opt/lampp/logs/access_log /opt/lampp/logs/error_log"]
+ifm-pepw-qpj
